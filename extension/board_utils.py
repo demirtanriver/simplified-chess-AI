@@ -1,13 +1,35 @@
+# In extension/board_utils.py (near the top)
+
+# ANSI Color Codes
+WHITE_COLOR = "\033[97m"  # Bright White
+BLACK_COLOR = "\033[35m"  # Magenta (or use a dark color like 30m if preferred)
+RESET_COLOR = "\033[0m"   # Reset color to terminal default
+
+# updated to represent colours
+
+
 def print_board_ascii(board):
+    # Mapping based on your files: "Right" is 'R'
     piece_map = {"pawn": "P", "right": "R", "knight": "N",
                  "bishop": "B", "queen": "Q", "king": "K"}
     grid = [["." for _ in range(5)] for _ in range(5)]
+
     for piece in board.get_pieces():
         pos = piece.position
         ch = piece_map.get(piece.name.lower(), "?")
-        grid[pos.y][pos.x] = ch.upper(
-        ) if piece.player.name.lower() == "white" else ch.lower()
+
+        # Determine color based on player name
+        if piece.player.name.lower() == "white":
+            # White pieces are uppercase, wrapped in WHITE_COLOR code
+            colored_ch = f"{WHITE_COLOR}{ch.upper()}{RESET_COLOR}"
+        else:
+            # Black pieces are lowercase, wrapped in BLACK_COLOR code
+            colored_ch = f"{BLACK_COLOR}{ch.lower()}{RESET_COLOR}"
+
+        grid[pos.y][pos.x] = colored_ch
+
     print("  0 1 2 3 4")
+    # Join the grid rows, which now contain the color codes
     for row in (range(5)):
         print(f"{row} " + " ".join(grid[row]))
 

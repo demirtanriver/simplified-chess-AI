@@ -5,7 +5,7 @@ from chessmaker.chess.base import Board
 from extension.board_utils import print_board_ascii, copy_piece_move
 from extension.board_rules import get_result
 from samples import white, black, sample0, sample1
-from agent import agent
+from agent import agent, human_player
 from opponent import opponent
 
 
@@ -76,4 +76,4 @@ def testgame(p_white, p_black, board_sample):
 
 
 if __name__ == "__main__":
-    testgame(p_white=agent, p_black=opponent, board_sample=sample0)
+    testgame(p_white=agent, p_black=human_player, board_sample=sample0)
