@@ -1,11 +1,8 @@
-# In extension/board_utils.py (near the top)
 
 # ANSI Color Codes
-WHITE_COLOR = "\033[97m"  # Bright White
-BLACK_COLOR = "\033[35m"  # Magenta (or use a dark color like 30m if preferred)
-RESET_COLOR = "\033[0m"   # Reset color to terminal default
-
-# updated to represent colours
+WHITE_COLOR = "\033[97m"
+BLACK_COLOR = "\033[35m"
+RESET_COLOR = "\033[0m"
 
 
 def print_board_ascii(board):

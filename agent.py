@@ -38,8 +38,6 @@ def get_terminal_score(board, depth, root_player):
                 return (WIN_SCORE + depth)
 
         if "Stalemate" in game_result:
-            # The player whose turn it is (board.current_player) is the one who is stalemated
-            # and loses the game.
             if board.current_player == root_player:
                 # Root player loses by stalemate
                 return LOSS_SCORE
@@ -80,11 +78,11 @@ def min_value(board, depth, alpha, beta, root_player):
     # Get legal moves for the current player (who is MIN)
     legal_moves = list_legal_moves_for(board, board.current_player)
 
-    # Note: Phase II (Move Ordering) would go here
+    legal_moves.sort(key=lambda x: get_mvvlva_score(x, board), reverse=True)
+    # random.shuffle(legal_moves)
 
     for piece_to_move, move_opt in legal_moves:
 
-        # 4. Try the move on a clone
         temp_board = board.clone()
         temp_board, moved_piece, applied_move = copy_piece_move(
             temp_board, piece_to_move, move_opt)
@@ -131,6 +129,9 @@ def max_value(board, depth, alpha, beta, root_player):
     # get all legal moves for the current player (who is MAX)
     legal_moves = list_legal_moves_for(board, board.current_player)
 
+    legal_moves.sort(key=lambda x: get_mvvlva_score(x, board), reverse=True)
+    # random.shuffle(legal_moves)
+
     for piece_to_move, move_opt in legal_moves:
 
         # Try the move on a clone board
@@ -169,47 +170,56 @@ def evaluate(board, player):
 
 def agent(board, player, var):
     '''
-    the agent looks at all possible moves at a ply depth of one and runs the 
-    minimax algorithm on each move the estimate which one leads to the better state
-
-    args:
-        board               : the board being played on 
-        ROOT_PLAYER (player): the player whose turn it is to make a move.
-                            we maximise for the root_player.
-
+    The agent uses Iterative Deepening, Alpha-Beta Pruning, MVV-LVA, and 
+    Principal Variation (PV) Ordering.
     '''
-    # Hints:
-    # List of players on the current board game: list(board.players) - default list: [Player (white), Player (black)]
-    # board.players[0].name = "white" and board.players[1].name = "black"
-    # Name of the player assigned to the agent (either "white" or "black"): player.name
-    # list of pieces of the current player: list(board.get_player_pieces(player))
-    # List of pieces and corresponding moves for each pieces of the player: piece, move_opt = list_legal_moves_for(board, player)
-    # List of legal move for a corresponding pieces: piece.get_move_options()
-
     TIME_LIMIT = 30
     ROOT_PLAYER = player
     MAX_DEPTH = 1
 
     best_move = (None, None)
-    best_score = -99999999999
+    best_score = -99999999
 
     legal_moves = list_legal_moves_for(board, player)
 
     if not legal_moves:
-        return None, None  # No legal moves, likely game over
+        return None, None
 
     start_time_total = time.time()
-    random.shuffle(legal_moves)
+
+    legal_moves.sort(key=lambda x: get_mvvlva_score(x, board), reverse=True)
+
+    pv_move = None
 
     while True:
 
         if time.time() - start_time_total > TIME_LIMIT * 0.98:
             break
 
-        current_best_move = (None, None)
-        current_best_score = -99999999999
+        root_moves = list(legal_moves)
 
-        for piece_to_move, move_opt in legal_moves:
+        if pv_move:
+            try:
+                root_moves.remove(pv_move)
+
+                root_moves.insert(0, pv_move)
+            except ValueError:
+                # If the move isn't legal anymore
+                pv_move = None
+
+        # TEMPORARY: Print the order of the first 5 moves for the current depth
+        print(f"Depth {MAX_DEPTH} Root Move Order:")
+        for i, (piece, move_opt) in enumerate(root_moves[:5]):
+            start_pos = f"{piece.position.x},{piece.position.y}"
+            end_pos = f"{move_opt.position.x},{move_opt.position.y}"
+            print(f"  {i+1}: {piece.name} from {start_pos} to {end_pos}")
+        print("-" * 20)
+        # END TEMPORARY CODE
+
+        current_best_move = (None, None)
+        current_best_score = -999999999
+
+        for piece_to_move, move_opt in root_moves:
 
             if time.time() - start_time_total > TIME_LIMIT * 0.95:
                 # return previous best move if time runs out
@@ -227,12 +237,11 @@ def agent(board, player, var):
             moved_piece.move(applied_move)
 
             # The next state is the opponent's turn.
-            # start the recursive search one level shallower (MAX_DEPTH - 1).
             current_score = min_value(
                 board=temp_board,
                 depth=MAX_DEPTH - 1,
-                alpha=-99999999999,
-                beta=99999999999,
+                alpha=-999999999,  # Use MIN_VAL constant
+                beta=999999999,  # Use MAX_VAL constant
                 root_player=ROOT_PLAYER
             )
 
@@ -240,13 +249,18 @@ def agent(board, player, var):
                 current_best_score = current_score
                 current_best_move = (piece_to_move, move_opt)
 
-        best_move = current_best_move
-        best_score = current_best_score
+                pv_move = current_best_move
 
-        print(
-            f"Completed search to Depth {MAX_DEPTH}. Best score: {best_score}")
+        if current_best_move != (None, None):
+            best_move = current_best_move
+            best_score = current_best_score
 
-        MAX_DEPTH += 1  # next iteration
+            print(
+                f"Completed search to Depth {MAX_DEPTH}. Best score: {best_score}. Took {time.time()-start_time_total:.2f} seconds")
+
+            MAX_DEPTH += 1
+        else:
+            break
 
     return best_move
 
@@ -291,3 +305,32 @@ def human_player(board, player, var):
             print(f"An error occurred: {e}")
 
     return None, None
+
+
+def get_mvvlva_score(piece_move_pair, board):
+    """
+    Calculates the MVV-LVA score for a single move using PIECE_VALUES. 
+    A multiplier is used to ensure all captures are scored > 0.
+    """
+    piece, move_opt = piece_move_pair
+
+    captured_pieces = getattr(move_opt, "captures", [])
+
+    if not captured_pieces:
+        return 0
+
+    victim_value = 0
+
+    for victim_pos in captured_pieces:
+
+        cell = board[victim_pos]
+        victim_piece = cell.piece
+
+        if victim_piece:
+            value = PIECE_VALUES.get(victim_piece.name, 100)
+
+            victim_value = max(victim_value, value * 10)
+
+    attacker_value = PIECE_VALUES.get(piece.name, 100)
+
+    return victim_value - attacker_value
