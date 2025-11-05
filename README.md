@@ -1,1 +1,1 @@
-test!
+This project implements a competitive Chess AI engine in Python, showcasing classical AI techniques. The AI determines the optimal move by using the Minimax algorithm with Alpha-Beta Pruning to significantly reduce the problem space. Heuristic functions are used to evaluate and score board states, ensuring better moves.
